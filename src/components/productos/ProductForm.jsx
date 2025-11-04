@@ -17,7 +17,7 @@ const ProductForm = () => {
     modelo: "",
     precio: "",
     stock: "",
-    proveedor_id: "",
+    proveedor: "",
     imagen: null,
   });
   const [proveedores, setProveedores] = useState([]);
@@ -28,27 +28,46 @@ const ProductForm = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
+        // Cargar proveedores
         const proveedoresData = await listarProveedores();
-        setProveedores(Array.isArray(proveedoresData) ? proveedoresData : []);
+        console.log("Proveedores cargados:", proveedoresData);
+        setProveedores(proveedoresData);
 
-        if (isEditing) {
-          const response = await getProducto(id);
-          const producto = response.data?.data || response.data;
-          setFormData({
-            nombre: producto.nombre || "",
-            modelo: producto.modelo || "",
-            precio: producto.precio || "",
-            stock: producto.stock || "",
-            proveedor_id: producto.proveedor_id || "",
-            imagen: null,
-          });
-          if (producto.imagen) {
-            setPreviewImage(producto.imagen);
+        // Si estamos editando, cargar datos del producto
+        if (isEditing && id) {
+          try {
+            const response = await getProducto(id);
+            const producto = response.data;
+            console.log("Producto cargado:", producto);
+
+            setFormData({
+              nombre: producto.nombre || "",
+              modelo: producto.modelo || "",
+              precio: producto.precio || "",
+              stock: producto.stock || "",
+              proveedor: producto.proveedor || "",
+              imagen: null,
+            });
+
+            // Asegurarse de que la URL de la imagen sea absoluta
+            if (producto.imagen) {
+              // Si la URL es relativa, conviértela en absoluta
+              const imagenUrl = producto.imagen.startsWith("http")
+                ? producto.imagen
+                : `https://api3-1-0spe.onrender.com${producto.imagen}`;
+              console.log("URL de la imagen:", imagenUrl);
+              setPreviewImage(imagenUrl);
+            }
+          } catch (error) {
+            console.error("Error al cargar el producto:", error);
+            setError("Error al cargar el producto");
           }
         }
       } catch (error) {
-        console.error("Error al cargar los datos:", error);
-        setError("Error al cargar los datos");
+        console.error("Error al cargar los proveedores:", error);
+        setError(
+          "Error al cargar los proveedores. Verifica que la API esté funcionando correctamente."
+        );
       }
     };
 
@@ -78,22 +97,67 @@ const ProductForm = () => {
     setError(null);
 
     try {
-      const data = new FormData();
-      Object.keys(formData).forEach((key) => {
-        if (formData[key] !== null) {
-          data.append(key, formData[key]);
+      // Preparar los datos
+      const formDataToSend = new FormData();
+
+      // Asegurarse de que los campos numéricos se envíen como números
+      const dataToSend = {
+        ...formData,
+        precio: parseFloat(formData.precio),
+        stock: parseInt(formData.stock, 10),
+        proveedor: parseInt(formData.proveedor, 10),
+      };
+
+      // Agregar cada campo al FormData, excluyendo valores nulos o indefinidos
+      Object.keys(dataToSend).forEach((key) => {
+        if (
+          dataToSend[key] !== null &&
+          dataToSend[key] !== undefined &&
+          dataToSend[key] !== ""
+        ) {
+          formDataToSend.append(key, dataToSend[key]);
         }
       });
 
+      // Si hay una imagen, agregarla solo si es un archivo nuevo
+      if (formData.imagen instanceof File) {
+        formDataToSend.append("imagen", formData.imagen);
+      }
+
+      console.log(
+        "Enviando datos:",
+        Object.fromEntries(formDataToSend.entries())
+      );
+
+      let response;
       if (isEditing) {
-        await editarProducto(id, data);
+        response = await editarProducto(id, formDataToSend);
+        console.log("Respuesta de edición:", response);
       } else {
-        await crearProducto(data);
+        response = await crearProducto(formDataToSend);
+        console.log("Respuesta de creación:", response);
       }
 
       navigate("/productos");
     } catch (error) {
-      setError("Error al guardar el producto");
+      console.error("Error detallado:", error);
+      let errorMessage = "Error al guardar el producto";
+
+      if (error.response) {
+        // Si hay una respuesta del servidor con error
+        const serverError = error.response.data;
+        if (typeof serverError === "object") {
+          // Si el error es un objeto con mensajes
+          errorMessage = Object.entries(serverError)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join("\n");
+        } else if (typeof serverError === "string") {
+          // Si el error es una cadena
+          errorMessage = serverError;
+        }
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -108,8 +172,18 @@ const ProductForm = () => {
             onClick={() => navigate("/productos")}
             className="text-gray-600 hover:text-gray-900 mb-4 inline-flex items-center text-sm transition-colors"
           >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <svg
+              className="w-4 h-4 mr-1"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
             Volver
           </button>
@@ -124,7 +198,10 @@ const ProductForm = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 space-y-6"
+        >
           {/* Grid de 2 columnas */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Nombre */}
@@ -202,8 +279,8 @@ const ProductForm = () => {
               Proveedor
             </label>
             <select
-              name="proveedor_id"
-              value={formData.proveedor_id}
+              name="proveedor"
+              value={formData.proveedor}
               onChange={handleChange}
               className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900 bg-white"
               required
@@ -225,8 +302,18 @@ const ProductForm = () => {
             <div className="flex items-start gap-4">
               <label className="flex-1 cursor-pointer">
                 <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
-                  <svg className="w-8 h-8 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <svg
+                    className="w-8 h-8 mx-auto text-gray-400 mb-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
                   </svg>
                   <p className="text-sm text-gray-600">
                     Haz clic para subir una imagen
@@ -249,17 +336,26 @@ const ProductForm = () => {
                     src={previewImage}
                     alt="Preview"
                     className="w-24 h-24 object-cover rounded-lg border border-gray-200"
+                    onError={(e) => {
+                      console.error("Error al cargar la imagen:", previewImage);
+                      e.target.src =
+                        "https://via.placeholder.com/150?text=No+disponible";
+                      e.target.onerror = null;
+                    }}
                   />
                   <button
                     type="button"
                     onClick={() => {
                       setPreviewImage(null);
-                      setFormData(prev => ({ ...prev, imagen: null }));
+                      setFormData((prev) => ({ ...prev, imagen: null }));
                     }}
                     className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
                   >
                     ×
                   </button>
+                  <div className="mt-1 text-xs text-gray-500">
+                    {isEditing ? "Imagen actual" : "Vista previa"}
+                  </div>
                 </div>
               )}
             </div>
@@ -272,7 +368,11 @@ const ProductForm = () => {
               disabled={loading}
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? "Guardando..." : isEditing ? "Actualizar" : "Crear Producto"}
+              {loading
+                ? "Guardando..."
+                : isEditing
+                ? "Actualizar"
+                : "Crear Producto"}
             </button>
             <button
               type="button"
