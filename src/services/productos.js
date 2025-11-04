@@ -1,6 +1,7 @@
 import axios from "axios";
+import { API_ENDPOINTS } from "../config/api";
 
-const API_URL = "https://api3-1-0spe.onrender.com/api/productos/";
+const API_URL = API_ENDPOINTS.productos;
 
 export const getProductos = () => axios.get(API_URL);
 

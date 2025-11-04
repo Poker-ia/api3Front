@@ -15,9 +15,13 @@ const ProveedoresList = () => {
   const fetchProveedores = async () => {
     try {
       const data = await listarProveedores();
-      setProveedores(data);
+      console.log("Proveedores recibidos:", data);
+      // Manejar diferentes formatos de respuesta
+      const proveedoresArray = Array.isArray(data) ? data : (data?.data || []);
+      setProveedores(proveedoresArray);
       setLoading(false);
     } catch (err) {
+      console.error("Error al cargar proveedores:", err);
       setError("Error al cargar los proveedores");
       setLoading(false);
     }
@@ -34,11 +38,13 @@ const ProveedoresList = () => {
     }
   };
 
-  const filteredProveedores = proveedores.filter(
-    (prov) =>
-      prov.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      prov.contacto?.includes(searchTerm)
-  );
+  const filteredProveedores = Array.isArray(proveedores) 
+    ? proveedores.filter(
+        (prov) =>
+          prov.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          prov.contacto?.includes(searchTerm)
+      )
+    : [];
 
   if (loading) {
     return (
@@ -113,7 +119,16 @@ const ProveedoresList = () => {
         {/* Error Message */}
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6">
-            {error}
+            <p className="font-semibold">Error:</p>
+            <p>{error}</p>
+            <p className="text-sm mt-2">Verifica que la API esté funcionando correctamente.</p>
+          </div>
+        )}
+
+        {/* Debug info */}
+        {!loading && !error && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg mb-6 text-sm">
+            Total de proveedores: {proveedores.length} | Filtrados: {filteredProveedores.length}
           </div>
         )}
 
