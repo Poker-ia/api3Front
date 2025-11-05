@@ -307,7 +307,7 @@ const ProductForm = () => {
                   Precio
                 </label>
                 <div className="relative">
-                  <span className="absolute left-4 top-3 text-gray-500">$</span>
+                  <span className="absolute left-4 top-3 text-gray-500">S/</span>
                   <input
                     type="number"
                     name="precio"

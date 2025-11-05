@@ -32,7 +32,7 @@ const ProveedorForm = () => {
       });
       setLoading(false);
     } catch (err) {
-      setError("Error al cargar el proveedor");
+      setError("Error al cargar el proveedor",err);
       setLoading(false);
     }
   };
@@ -58,7 +58,7 @@ const ProveedorForm = () => {
       }
       navigate("/proveedores");
     } catch (err) {
-      setError("Error al guardar el proveedor");
+      setError("Error al guardar el proveedor",err);
       setLoading(false);
     }
   };

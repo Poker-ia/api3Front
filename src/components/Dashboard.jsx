@@ -188,7 +188,7 @@ const Dashboard = () => {
                     </h3>
                     <div className="flex justify-between items-center mb-3">
                       <span className="text-lg font-normal text-gray-900">
-                        ${producto.precio}
+                        S/{producto.precio}
                       </span>
                       <span
                         className={`text-xs font-normal px-2 py-1 rounded ${
