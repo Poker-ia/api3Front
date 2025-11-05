@@ -97,64 +97,94 @@ const ProductForm = () => {
     setError(null);
 
     try {
-      // Preparar los datos
+      // Validaciones
+      if (!formData.nombre || !formData.modelo) {
+        setError("El nombre y modelo son campos obligatorios");
+        setLoading(false);
+        return;
+      }
+
+      const precio = parseFloat(formData.precio);
+      if (isNaN(precio) || precio <= 0) {
+        setError("El precio debe ser un número válido mayor que 0");
+        setLoading(false);
+        return;
+      }
+
+      const stock = parseInt(formData.stock, 10);
+      if (isNaN(stock) || stock < 0) {
+        setError("El stock debe ser un número válido mayor o igual a 0");
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.proveedor) {
+        setError("Debe seleccionar un proveedor");
+        setLoading(false);
+        return;
+      }
+
+      // Preparar FormData
       const formDataToSend = new FormData();
 
-      // Asegurarse de que los campos numéricos se envíen como números
-      const dataToSend = {
-        ...formData,
-        precio: parseFloat(formData.precio),
-        stock: parseInt(formData.stock, 10),
-        proveedor: parseInt(formData.proveedor, 10),
-      };
+      // Agregar campos obligatorios
+      formDataToSend.append("nombre", formData.nombre.trim());
+      formDataToSend.append("modelo", formData.modelo.trim());
+      formDataToSend.append("precio", precio.toFixed(2));
+      formDataToSend.append("stock", stock);
+      formDataToSend.append("proveedor", parseInt(formData.proveedor, 10));
 
-      // Agregar cada campo al FormData, excluyendo valores nulos o indefinidos
-      Object.keys(dataToSend).forEach((key) => {
-        if (
-          dataToSend[key] !== null &&
-          dataToSend[key] !== undefined &&
-          dataToSend[key] !== ""
-        ) {
-          formDataToSend.append(key, dataToSend[key]);
-        }
-      });
-
-      // Si hay una imagen, agregarla solo si es un archivo nuevo
+      // Agregar imagen si existe
       if (formData.imagen instanceof File) {
         formDataToSend.append("imagen", formData.imagen);
       }
 
-      console.log(
-        "Enviando datos:",
-        Object.fromEntries(formDataToSend.entries())
-      );
+      console.log("Datos a enviar:", {
+        nombre: formDataToSend.get("nombre"),
+        modelo: formDataToSend.get("modelo"),
+        precio: formDataToSend.get("precio"),
+        stock: formDataToSend.get("stock"),
+        proveedor: formDataToSend.get("proveedor"),
+        imagen:
+          formData.imagen instanceof File
+            ? "Archivo presente"
+            : "No hay archivo",
+      });
 
       let response;
       if (isEditing) {
         response = await editarProducto(id, formDataToSend);
-        console.log("Respuesta de edición:", response);
+        console.log("Producto editado:", response.data);
       } else {
         response = await crearProducto(formDataToSend);
-        console.log("Respuesta de creación:", response);
+        console.log("Producto creado:", response.data);
       }
 
+      alert(
+        isEditing
+          ? "Producto actualizado exitosamente"
+          : "Producto creado exitosamente"
+      );
       navigate("/productos");
     } catch (error) {
-      console.error("Error detallado:", error);
-      let errorMessage = "Error al guardar el producto";
+      console.error("Error detallado:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
 
-      if (error.response) {
-        // Si hay una respuesta del servidor con error
-        const serverError = error.response.data;
-        if (typeof serverError === "object") {
-          // Si el error es un objeto con mensajes
-          errorMessage = Object.entries(serverError)
+      let errorMessage = "Error al guardar el producto: ";
+
+      if (error.response?.data) {
+        if (typeof error.response.data === "object") {
+          errorMessage += Object.entries(error.response.data)
             .map(([key, value]) => `${key}: ${value}`)
-            .join("\n");
-        } else if (typeof serverError === "string") {
-          // Si el error es una cadena
-          errorMessage = serverError;
+            .join(". ");
+        } else {
+          errorMessage += error.response.data;
         }
+      } else {
+        errorMessage += error.message;
       }
 
       setError(errorMessage);

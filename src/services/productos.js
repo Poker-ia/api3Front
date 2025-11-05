@@ -27,21 +27,61 @@ export const getProducto = async (id) => {
 
 export const crearProducto = async (data) => {
   try {
-    // Asegurarse de que los campos numéricos sean enviados como números
-    const formData = new FormData();
-    if (data.nombre) formData.append('nombre', data.nombre);
-    if (data.modelo) formData.append('modelo', data.modelo);
-    if (data.precio) formData.append('precio', parseFloat(data.precio));
-    if (data.stock) formData.append('stock', parseInt(data.stock));
-    if (data.imagen) formData.append('imagen', data.imagen);
-    if (data.proveedor) formData.append('proveedor', data.proveedor);
+    // Validar que data sea una instancia de FormData
+    if (!(data instanceof FormData)) {
+      throw new Error('Los datos deben ser enviados como FormData');
+    }
 
-    const response = await axios.post(API_URL, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
+    // Log de diagnóstico
+    console.log('Datos a enviar en crearProducto:', {
+      nombre: data.get('nombre'),
+      modelo: data.get('modelo'),
+      precio: data.get('precio'),
+      stock: data.get('stock'),
+      proveedor: data.get('proveedor'),
+      imagen: data.get('imagen') ? 'Archivo presente' : 'No hay imagen'
     });
+
+    // Validaciones adicionales
+    const requiredFields = ['nombre', 'modelo', 'precio', 'stock', 'proveedor'];
+    const missingFields = requiredFields.filter(field => !data.get(field));
+    
+    if (missingFields.length > 0) {
+      throw new Error(`Campos requeridos faltantes: ${missingFields.join(', ')}`);
+    }
+
+    // Enviar la solicitud
+    const response = await axios.post(API_URL, data, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      }
+    });
+
+    console.log('Respuesta exitosa de crearProducto:', response.data);
     return response;
   } catch (error) {
-    console.error("Error en crearProducto:", error);
+    console.error('Error en crearProducto:', {
+      message: error.message,
+      responseData: error.response?.data,
+      status: error.response?.status
+    });
+    
+    // Mejorar el mensaje de error para el usuario
+    if (error.response?.status === 400) {
+      const errorData = error.response.data;
+      let errorMessage = 'Error de validación: ';
+      
+      if (typeof errorData === 'object') {
+        errorMessage += Object.entries(errorData)
+          .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs.join(', ') : msgs}`)
+          .join('; ');
+      } else {
+        errorMessage += errorData;
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
     throw error;
   }
 };
