@@ -179,7 +179,7 @@ const ProductosList = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-lg font-bold text-blue-600">
-                          ${producto.precio}
+                          S/{producto.precio}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
