@@ -33,7 +33,7 @@ const ProveedoresList = () => {
         await eliminarProveedor(id);
         setProveedores(proveedores.filter((prov) => prov.id !== id));
       } catch (err) {
-        setError("Error al eliminar el proveedor");
+        setError("Error al eliminar el proveedor",err);
       }
     }
   };
